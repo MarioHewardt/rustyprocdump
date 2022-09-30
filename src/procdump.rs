@@ -14,7 +14,7 @@ fn main(){
     procdumpconfiguration::get_options(&mut config);
 
     // Print the active triggers
-    procdumpconfiguration::print_triggers(&config);
+    procdumpconfiguration::print_configuration(&config);
 
     // Now we need to spawn a thread that monitors the target process for memory consumption
     let handle = thread::spawn(move || triggerthreadprocs::mem_monitoring_thread(&config));
