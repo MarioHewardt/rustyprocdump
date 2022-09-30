@@ -10,7 +10,7 @@ fn main(){
     procdumpconfiguration::print_banner();
 
     // Parse cmd line
-    let mut config =  procdumpconfiguration::ProcDumpConfiguration { mem_trigger_value: 0, mem_trigger_below_value: false, process_id: 0, polling_frequency: 1000 };
+    let mut config =  Default::default();
     procdumpconfiguration::get_options(&mut config);
 
     // Print the active triggers

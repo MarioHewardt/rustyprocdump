@@ -42,8 +42,8 @@ pub fn mem_monitoring_thread(config: &procdumpconfiguration::ProcDumpConfigurati
 
         let mem_usage = rss + swap;
 
-        if (config.mem_trigger_below_value && mem_usage < config.mem_trigger_value) ||
-            (!config.mem_trigger_below_value && mem_usage >= config.mem_trigger_value) {
+        if (config.trigger_threshold_mem_below && mem_usage < config.trigger_threshold_mem) ||
+            (!config.trigger_threshold_mem_below && mem_usage >= config.trigger_threshold_mem) {
 
                 //
                 // Memory consumption trigger triggered
