@@ -29,9 +29,6 @@ fn main(){
         return;
     }
 
-    // Print the active triggers
-    procdumpconfiguration::print_configuration(&config);
-
     // Start monitoring based on config
     monitor::monitor_processes(&mut config);
 

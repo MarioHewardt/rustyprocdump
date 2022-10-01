@@ -11,10 +11,59 @@ use std::fs;
 use std::{thread, time};
 use std::process::Command;
 
+
+// --------------------------------------------------------------------
+// cpu_monitoring_thread - Monitors for cpu consumption based on config
+// --------------------------------------------------------------------
+pub fn cpu_monitoring_thread(config: &procdumpconfiguration::ProcDumpConfiguration) -> u32
+{
+
+    0
+}
+
+// --------------------------------------------------------------------
+// thread_monitoring_thread - Monitors for thread count  based on config
+// --------------------------------------------------------------------
+pub fn thread_monitoring_thread(config: &procdumpconfiguration::ProcDumpConfiguration) -> u32
+{
+
+    0
+}
+
+// --------------------------------------------------------------------
+// file_monitoring_thread - Monitors for file desc count  based on config
+// --------------------------------------------------------------------
+pub fn file_monitoring_thread(config: &procdumpconfiguration::ProcDumpConfiguration) -> u32
+{
+
+    0
+}
+
+// --------------------------------------------------------------------
+// signal_monitoring_thread - Monitors for signal based on config
+// --------------------------------------------------------------------
+pub fn signal_monitoring_thread(config: &procdumpconfiguration::ProcDumpConfiguration) -> u32
+{
+
+    0
+}
+
+
+// --------------------------------------------------------------------
+// timer_monitoring_thread - Timer based monito  based on config
+// --------------------------------------------------------------------
+pub fn timer_monitoring_thread(config: &procdumpconfiguration::ProcDumpConfiguration) -> u32
+{
+
+    0
+}
+
+
 // --------------------------------------------------------------------
 // mem_monitoring_thread - Monitors for mem consumption based on config
 // --------------------------------------------------------------------
-pub fn mem_monitoring_thread(config: &procdumpconfiguration::ProcDumpConfiguration) -> u32 {
+pub fn mem_monitoring_thread(config: &procdumpconfiguration::ProcDumpConfiguration) -> u32
+{
 
     let polling_frequency = time::Duration::from_millis(config.polling_frequency);
 

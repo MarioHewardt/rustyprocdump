@@ -9,6 +9,7 @@
 use std::env;
 use std::fs;
 use std::path::Path;
+use std::thread::JoinHandle;
 
 //
 // Constants used
@@ -45,6 +46,9 @@ pub struct ProcDumpConfiguration{
     pub core_dump_name : String,
     pub exit_monitor : bool,
     pub overwrite_existing_dump: bool,
+    pub process_start_time: i64,
+    pub active: bool,
+    pub threads: Vec<JoinHandle<u32>>,
 }
 
 //--------------------------------------------------------------------
@@ -83,6 +87,8 @@ impl Default for ProcDumpConfiguration
         ProcDumpConfiguration
         {
             process_id: -1,
+            process_start_time: 0,
+            active: false,
             is_process_group_set: false,
             process_pgid: -1,
             process_name: Default::default(),
@@ -106,6 +112,7 @@ impl Default for ProcDumpConfiguration
             threshold_seconds: u32::MAX,
             exit_monitor: false,
             overwrite_existing_dump: false,
+            threads: Vec::new(),
         }
     }
 }

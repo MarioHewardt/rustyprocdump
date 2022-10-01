@@ -7,15 +7,21 @@
 //
 //--------------------------------------------------------------------
 use crate::procdumpconfiguration;
-use crate::processhelpers::get_process_name;
+use crate::procdumpconfiguration::ProcDumpConfiguration;
+use crate::procdumpconfiguration::print_configuration;
+use crate::processhelpers::look_up_process_by_pid;
+use crate::processhelpers::look_up_process_pid_by_name;
+use crate::processhelpers::look_up_process_name_by_pid;
 use crate::triggerthreadprocs;
 use crate::processhelpers;
-
+use std::collections::HashMap;
+use std::thread;
 
 pub struct MonitoredProcessMapEntry
 {
     pub active: bool,
     pub starttime: u64,
+    pub config: ProcDumpConfiguration,
 }
 
 
@@ -23,9 +29,11 @@ pub struct MonitoredProcessMapEntry
 // monitor_processes - Monitors all processes and creates monitors
 // based on the configuration
 // -----------------------------------------------------------------
-pub fn monitor_processes(config: &mut procdumpconfiguration::ProcDumpConfiguration)
+pub fn monitor_processes(config: &mut ProcDumpConfiguration)
 {
-    let mut monitored_process_map: Vec<MonitoredProcessMapEntry> = Vec::new();
+    let mut monitored_process_map: HashMap<i32, &ProcDumpConfiguration>;
+    monitored_process_map = HashMap::new();
+    //let mut monitors: Vec<&ProcDumpConfiguration> = Vec::new();
 
     if config.waiting_process_name
     {
@@ -55,13 +63,125 @@ pub fn monitor_processes(config: &mut procdumpconfiguration::ProcDumpConfigurati
         // If we have a process name find it to make sure it exists
         if !config.process_name.is_empty()
         {
-            if get_process_name(&config.process_name)
+            // Set the process ID so the monitor can target.
+            config.process_id = look_up_process_pid_by_name(&config.process_name);
+
+            if config.process_id == i32::MAX
             {
-                println!("Found process name");
+                println!("No process matching the specified name ({}) can be found.", config.process_name);
+                return;
             }
         }
+        else if config.process_id != i32::MAX && !look_up_process_by_pid(config.process_id)
+        {
+            println!("No process matching the specified PID ({}) can be found.", config.process_id);
+            return;
+        }
+
+        config.process_name = look_up_process_name_by_pid(config.process_id);
+        // TODO: Get starttime
+        monitored_process_map.insert(config.process_id, &config);
+
+        print_configuration(config);
+
+        if !start_monitor(config)
+        {
+            println!("Failed to start monitor for pid: {}", config.process_id);
+            return;
+        }
+
+        wait_for_monitor_exit(config);
+        monitored_process_map.remove(&config.process_id);
+
     }
 
 }
 
 
+// -----------------------------------------------------------------
+// start_monitor - Starts a monitor based on the configuration
+// -----------------------------------------------------------------
+pub fn start_monitor(config: &mut ProcDumpConfiguration) -> bool
+{
+    if config.trigger_threshold_mem != u32::MAX
+    {
+        let thread = thread::Builder::new().name("Memory monitor thread".to_string()).spawn(move || triggerthreadprocs::mem_monitoring_thread(&config));
+        if thread.is_err()
+        {
+            return false;
+        }
+
+        config.threads.push(thread.unwrap());
+    }
+
+    if config.trigger_threshold_cpu != u32::MAX
+    {
+        let thread = thread::Builder::new().name("CPU monitor thread".to_string()).spawn(move || triggerthreadprocs::cpu_monitoring_thread(&config));
+        if thread.is_err()
+        {
+            return false;
+        }
+
+        config.threads.push(thread.unwrap());
+    }
+
+    if config.trigger_threshold_threads != u32::MAX
+    {
+        let thread = thread::Builder::new().name("Thread monitor thread".to_string()).spawn(move || triggerthreadprocs::thread_monitoring_thread(&config));
+        if thread.is_err()
+        {
+            return false;
+        }
+
+        config.threads.push(thread.unwrap());
+
+    }
+
+    if config.trigger_threshold_file_descriptors != u32::MAX
+    {
+        let thread = thread::Builder::new().name("File monitor thread".to_string()).spawn(move || triggerthreadprocs::file_monitoring_thread(&config));
+        if thread.is_err()
+        {
+            return false;
+        }
+
+        config.threads.push(thread.unwrap());
+
+    }
+
+    if config.trigger_signal != u32::MAX
+    {
+        let thread = thread::Builder::new().name("Signal monitor thread".to_string()).spawn(move || triggerthreadprocs::signal_monitoring_thread(&config));
+        if thread.is_err()
+        {
+            return false;
+        }
+
+        config.threads.push(thread.unwrap());
+
+    }
+
+    if config.trigger_threshold_timer
+    {
+        let thread = thread::Builder::new().name("Timer monitor thread".to_string()).spawn(move || triggerthreadprocs::timer_monitoring_thread(&config));
+        if thread.is_err()
+        {
+            return false;
+        }
+
+        config.threads.push(thread.unwrap());
+
+    }
+
+    true
+}
+
+// -----------------------------------------------------------------
+// wait_for_monitor_exit - Waits for a monitor to exit
+// -----------------------------------------------------------------
+pub fn wait_for_monitor_exit(config: &mut ProcDumpConfiguration) -> bool
+{
+
+
+    true
+}
