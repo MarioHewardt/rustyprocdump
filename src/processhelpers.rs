@@ -15,9 +15,10 @@ pub fn get_process_name(process_name: &String) -> bool
     {
         let entry = entry.expect("I couldn't read something inside the directory");
         let path = entry.path();
-        println!("{:?}", path);
+        println!("{:?}", entry.file_name());
 
-
+        let statcontents = fs::read_to_string(path).expect("Stat file not found.");
+        let mut pid = statcontents.split(" ").nth(23).unwrap().parse::<u32>().unwrap();
     }
 
 
