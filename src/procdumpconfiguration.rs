@@ -9,7 +9,6 @@
 use std::env;
 use std::fs;
 use std::path::Path;
-use std::thread::JoinHandle;
 
 //
 // Constants used
@@ -21,6 +20,7 @@ const DEFAULT_NUMBER_OF_DUMPS: u32 = 1;
 //
 // Struct used to communicate the current procdump configuration
 //
+#[derive(Clone)]
 pub struct ProcDumpConfiguration{
     pub process_id: i32,
     pub process_pgid: i32,
@@ -48,7 +48,7 @@ pub struct ProcDumpConfiguration{
     pub overwrite_existing_dump: bool,
     pub process_start_time: i64,
     pub active: bool,
-    pub threads: Vec<JoinHandle<u32>>,
+    pub process_terminated: bool,
 }
 
 //--------------------------------------------------------------------
@@ -73,6 +73,18 @@ pub fn apply_defaults(config:&mut ProcDumpConfiguration)
         config.polling_frequency = DEFAULT_POLLING_INTERVAL;
     }
 }
+
+// -----------------------------------------------------------------
+// Implement cloe trait for ProcDumpConfiguration
+// -----------------------------------------------------------------
+/*impl Clone for ProcDumpConfiguration
+{
+    fn clone(&self) -> ProcDumpConfiguration
+    {
+
+    }
+}*/
+
 
 // -----------------------------------------------------------------
 // Default values trait for ProcDumpConfiguration
@@ -112,7 +124,7 @@ impl Default for ProcDumpConfiguration
             threshold_seconds: u32::MAX,
             exit_monitor: false,
             overwrite_existing_dump: false,
-            threads: Vec::new(),
+            process_terminated: false,
         }
     }
 }

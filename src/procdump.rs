@@ -31,9 +31,5 @@ fn main(){
 
     // Start monitoring based on config
     monitor::monitor_processes(&mut config);
-
-    // Now we need to spawn a thread that monitors the target process for memory consumption
-    //let handle = thread::spawn(move || triggerthreadprocs::mem_monitoring_thread(&config));
-    //handle.join().unwrap();
 }
 

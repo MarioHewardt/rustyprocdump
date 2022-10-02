@@ -6,16 +6,67 @@
 // Contains the memory consumption monitoring thread
 //
 //--------------------------------------------------------------------
-use crate::procdumpconfiguration;
+extern crate nix;
+use crate::procdumpconfiguration::ProcDumpConfiguration;
 use std::fs;
 use std::{thread, time};
 use std::process::Command;
+use std::thread::park_timeout;
+use std::time::{Instant, Duration};
+use std::sync::Arc;
+use nix::sys::signal::*;
+use nix::unistd::Pid;
+use std::sync::{Arc, Mutex};
 
+// --------------------------------------------------------------------
+// should_continue_monitoring - returns true if monitor thread should
+// continue monitoring, otherwise false
+// --------------------------------------------------------------------
+pub fn should_continue_monitoring(config: &mut ProcDumpConfiguration) -> bool
+{
+    // Have we exceeded dump count?
+    if config.number_of_dumps_collected > config.number_of_dumps_to_collect
+    {
+        return false;
+    }
+
+    // Is target process terminated?
+    if config.process_terminated
+    {
+        return false;
+    }
+
+    // check if any process are running with PGID
+    let pgid = Pid::from_raw(-1 * config.process_pgid);
+    if config.process_pgid != i32::MAX
+    {
+        let res = kill(pgid, None);
+        if res.is_err()
+        {
+            config.process_terminated = true;
+            return false;
+        }
+    }
+
+    // check if any process are running with PID
+    let pid = Pid::from_raw(config.process_id);
+    if config.process_id != i32::MAX
+    {
+        let res = kill(pid, None);
+        if res.is_err()
+        {
+            config.process_terminated = true;
+            return false;
+        }
+    }
+
+    true
+}
 
 // --------------------------------------------------------------------
 // cpu_monitoring_thread - Monitors for cpu consumption based on config
 // --------------------------------------------------------------------
-pub fn cpu_monitoring_thread(config: &procdumpconfiguration::ProcDumpConfiguration) -> u32
+pub fn cpu_monitoring_thread(config: Arc<ProcDumpConfiguration>) -> u32
 {
 
     0
@@ -24,7 +75,7 @@ pub fn cpu_monitoring_thread(config: &procdumpconfiguration::ProcDumpConfigurati
 // --------------------------------------------------------------------
 // thread_monitoring_thread - Monitors for thread count  based on config
 // --------------------------------------------------------------------
-pub fn thread_monitoring_thread(config: &procdumpconfiguration::ProcDumpConfiguration) -> u32
+pub fn thread_monitoring_thread(config: Arc<ProcDumpConfiguration>) -> u32
 {
 
     0
@@ -33,7 +84,7 @@ pub fn thread_monitoring_thread(config: &procdumpconfiguration::ProcDumpConfigur
 // --------------------------------------------------------------------
 // file_monitoring_thread - Monitors for file desc count  based on config
 // --------------------------------------------------------------------
-pub fn file_monitoring_thread(config: &procdumpconfiguration::ProcDumpConfiguration) -> u32
+pub fn file_monitoring_thread(config: Arc<ProcDumpConfiguration>) -> u32
 {
 
     0
@@ -42,7 +93,7 @@ pub fn file_monitoring_thread(config: &procdumpconfiguration::ProcDumpConfigurat
 // --------------------------------------------------------------------
 // signal_monitoring_thread - Monitors for signal based on config
 // --------------------------------------------------------------------
-pub fn signal_monitoring_thread(config: &procdumpconfiguration::ProcDumpConfiguration) -> u32
+pub fn signal_monitoring_thread(config: Arc<ProcDumpConfiguration>) -> u32
 {
 
     0
@@ -50,10 +101,35 @@ pub fn signal_monitoring_thread(config: &procdumpconfiguration::ProcDumpConfigur
 
 
 // --------------------------------------------------------------------
-// timer_monitoring_thread - Timer based monito  based on config
+// timer_monitoring_thread - Timer based monitor  based on config
 // --------------------------------------------------------------------
-pub fn timer_monitoring_thread(config: &procdumpconfiguration::ProcDumpConfiguration) -> u32
+pub fn timer_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u32
 {
+    let timeout = Duration::from_secs(config.polling_frequency/1000);
+
+    while should_continue_monitoring(&mut config)
+    {
+        let beginning_park = Instant::now();
+        let mut timeout_remaining = timeout;
+
+        park_timeout(timeout_remaining);
+        let elapsed = beginning_park.elapsed();
+        if elapsed >= timeout
+        {
+            //
+            // Polling frequency has elapsed...generate a dump
+            //
+            println!("Trigger: Timer:{}(s) on process ID: {}", config.polling_frequency/1000, config.process_id);
+            // Write Dump
+        }
+        else
+        {
+            //
+            // Thread was unparked as a result of cancellation...exit
+            //
+            break;
+        }
+    }
 
     0
 }
@@ -62,7 +138,7 @@ pub fn timer_monitoring_thread(config: &procdumpconfiguration::ProcDumpConfigura
 // --------------------------------------------------------------------
 // mem_monitoring_thread - Monitors for mem consumption based on config
 // --------------------------------------------------------------------
-pub fn mem_monitoring_thread(config: &procdumpconfiguration::ProcDumpConfiguration) -> u32
+pub fn mem_monitoring_thread(config: Arc<ProcDumpConfiguration>) -> u32
 {
 
     let polling_frequency = time::Duration::from_millis(config.polling_frequency);
