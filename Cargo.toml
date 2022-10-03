@@ -10,4 +10,4 @@ path = "src/procdump.rs"
 [dependencies]
 nix = "0.25.0"
 chrono = "0.4.22"
-
+sysinfo = "0.26.4"
