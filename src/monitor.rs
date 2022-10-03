@@ -45,9 +45,8 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
 
     // TODO: Create signal handler thread
 
-    println!();
-    println!();
     println!("Press Ctrl-C to end monitoring without terminating the process(es).");
+    println!();
 
     if !config.waiting_process_name && !config.is_process_group_set
     {
@@ -101,6 +100,7 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
         let entry_o = monitored_process_map.get_mut(&config.process_id).unwrap();
 
         wait_for_monitor_exit(entry_o);
+        println!("Stopping monitor for process {} ({})", config.process_name, config.process_id);
         monitored_process_map.remove(&config.process_id);
     }
 
@@ -193,6 +193,8 @@ pub fn start_monitor(entry: &mut MonitoredProcessMapEntry) -> bool
         entry.threads.push(Some(thread.unwrap()));
 
     }
+
+    println!("Starting monitor for process {} ({})", guard.process_name, guard.process_id);
 
     true
 }

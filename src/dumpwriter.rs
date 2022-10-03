@@ -8,7 +8,6 @@
 //--------------------------------------------------------------------
 extern crate chrono;
 use chrono::Local;
-use nix::libc::Elf32_Section;
 use crate::procdumpconfiguration::ProcDumpConfiguration;
 use std::sync::{Arc, Mutex};
 use std::process::Command;

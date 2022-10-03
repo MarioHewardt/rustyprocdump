@@ -6,10 +6,7 @@
 // Helpers for retrieving process stats
 //
 //--------------------------------------------------------------------
-use std::{fs,fmt::Error};
-use std::io;
-use std::path::Path;
-
+use std::{fs};
 
 //--------------------------------------------------------------------
 //
@@ -39,7 +36,7 @@ pub fn look_up_process_name_by_pid(pid: i32) -> String
                 image_name = raw_line.split(" ").nth(1).unwrap();
             }
 
-            return image_name.to_string();
+            return image_name.split('/').last().unwrap().to_string();
         }
     }
 
@@ -62,6 +59,13 @@ pub fn look_up_process_pid_by_name(process_name: &String) -> i32
         let path = entry.path();
 
         let pid = path.file_name().unwrap().to_str().unwrap().to_lowercase();
+
+        // If we can't convert the read pid to i32 its not a pid, move on
+        let _ = match pid.parse::<i32>()
+        {
+            Ok(pid) => pid,
+            Err(_err) => { continue; },
+        };
 
         let process_name_found = look_up_process_name_by_pid(pid.parse::<i32>().unwrap());
         if process_name_found.eq(process_name)
