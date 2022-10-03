@@ -112,23 +112,21 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
 // -----------------------------------------------------------------
 pub fn start_monitor(entry: &mut MonitoredProcessMapEntry) -> bool
 {
+    let mut guard = entry.config.lock().unwrap();
+    if guard.trigger_threshold_mem != u32::MAX
     {
-        let mut guard = entry.config.lock().unwrap();
-        if guard.trigger_threshold_mem != u32::MAX
+        let config_clone = entry.config.clone();
+
+        let thread = thread::Builder::new().name("Memory monitor thread".to_string()).spawn(move || triggerthreadprocs::mem_monitoring_thread(config_clone));
+        if thread.is_err()
         {
-            let config_clone = guard.clone();
-
-            let thread = thread::Builder::new().name("Memory monitor thread".to_string()).spawn(move || triggerthreadprocs::mem_monitoring_thread(config_clone));
-            if thread.is_err()
-            {
-                return false;
-            }
-
-            entry.threads.push(Some(thread.unwrap()));
+            return false;
         }
+
+        entry.threads.push(Some(thread.unwrap()));
     }
 
-    if entry.config.trigger_threshold_cpu != u32::MAX
+    if guard.trigger_threshold_cpu != u32::MAX
     {
         let config_clone = entry.config.clone();
 
@@ -141,7 +139,7 @@ pub fn start_monitor(entry: &mut MonitoredProcessMapEntry) -> bool
         entry.threads.push(Some(thread.unwrap()));
     }
 
-    if entry.config.trigger_threshold_threads != u32::MAX
+    if guard.trigger_threshold_threads != u32::MAX
     {
         let config_clone = entry.config.clone();
 
@@ -155,7 +153,7 @@ pub fn start_monitor(entry: &mut MonitoredProcessMapEntry) -> bool
 
     }
 
-    if entry.config.trigger_threshold_file_descriptors != u32::MAX
+    if guard.trigger_threshold_file_descriptors != u32::MAX
     {
         let config_clone = entry.config.clone();
 
@@ -168,7 +166,7 @@ pub fn start_monitor(entry: &mut MonitoredProcessMapEntry) -> bool
         entry.threads.push(Some(thread.unwrap()));
     }
 
-    if entry.config.trigger_signal != u32::MAX
+    if guard.trigger_signal != u32::MAX
     {
         let config_clone = entry.config.clone();
 
@@ -182,7 +180,7 @@ pub fn start_monitor(entry: &mut MonitoredProcessMapEntry) -> bool
 
     }
 
-    if entry.config.trigger_threshold_timer
+    if guard.trigger_threshold_timer
     {
         let config_clone = entry.config.clone();
 

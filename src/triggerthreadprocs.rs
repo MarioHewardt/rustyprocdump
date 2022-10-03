@@ -13,7 +13,6 @@ use std::{thread, time};
 use std::process::Command;
 use std::thread::park_timeout;
 use std::time::{Instant, Duration};
-use std::sync::Arc;
 use nix::sys::signal::*;
 use nix::unistd::Pid;
 use std::sync::{Arc, Mutex};
@@ -22,40 +21,42 @@ use std::sync::{Arc, Mutex};
 // should_continue_monitoring - returns true if monitor thread should
 // continue monitoring, otherwise false
 // --------------------------------------------------------------------
-pub fn should_continue_monitoring(config: &mut ProcDumpConfiguration) -> bool
+pub fn should_continue_monitoring(config: &Arc<Mutex<ProcDumpConfiguration>>) -> bool
 {
+    let mut lock = config.lock().unwrap();
+
     // Have we exceeded dump count?
-    if config.number_of_dumps_collected > config.number_of_dumps_to_collect
+    if lock.number_of_dumps_collected > lock.number_of_dumps_to_collect
     {
         return false;
     }
 
     // Is target process terminated?
-    if config.process_terminated
+    if lock.process_terminated
     {
         return false;
     }
 
     // check if any process are running with PGID
-    let pgid = Pid::from_raw(-1 * config.process_pgid);
-    if config.process_pgid != i32::MAX
+    let pgid = Pid::from_raw(-1 * lock.process_pgid);
+    if lock.process_pgid != i32::MAX
     {
         let res = kill(pgid, None);
         if res.is_err()
         {
-            config.process_terminated = true;
+            lock.process_terminated = true;
             return false;
         }
     }
 
     // check if any process are running with PID
-    let pid = Pid::from_raw(config.process_id);
-    if config.process_id != i32::MAX
+    let pid = Pid::from_raw(lock.process_id);
+    if lock.process_id != i32::MAX
     {
         let res = kill(pid, None);
         if res.is_err()
         {
-            config.process_terminated = true;
+            lock.process_terminated = true;
             return false;
         }
     }
@@ -66,7 +67,7 @@ pub fn should_continue_monitoring(config: &mut ProcDumpConfiguration) -> bool
 // --------------------------------------------------------------------
 // cpu_monitoring_thread - Monitors for cpu consumption based on config
 // --------------------------------------------------------------------
-pub fn cpu_monitoring_thread(config: Arc<ProcDumpConfiguration>) -> u32
+pub fn cpu_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u32
 {
 
     0
@@ -75,7 +76,7 @@ pub fn cpu_monitoring_thread(config: Arc<ProcDumpConfiguration>) -> u32
 // --------------------------------------------------------------------
 // thread_monitoring_thread - Monitors for thread count  based on config
 // --------------------------------------------------------------------
-pub fn thread_monitoring_thread(config: Arc<ProcDumpConfiguration>) -> u32
+pub fn thread_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u32
 {
 
     0
@@ -84,7 +85,7 @@ pub fn thread_monitoring_thread(config: Arc<ProcDumpConfiguration>) -> u32
 // --------------------------------------------------------------------
 // file_monitoring_thread - Monitors for file desc count  based on config
 // --------------------------------------------------------------------
-pub fn file_monitoring_thread(config: Arc<ProcDumpConfiguration>) -> u32
+pub fn file_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u32
 {
 
     0
@@ -93,7 +94,7 @@ pub fn file_monitoring_thread(config: Arc<ProcDumpConfiguration>) -> u32
 // --------------------------------------------------------------------
 // signal_monitoring_thread - Monitors for signal based on config
 // --------------------------------------------------------------------
-pub fn signal_monitoring_thread(config: Arc<ProcDumpConfiguration>) -> u32
+pub fn signal_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u32
 {
 
     0
@@ -105,9 +106,11 @@ pub fn signal_monitoring_thread(config: Arc<ProcDumpConfiguration>) -> u32
 // --------------------------------------------------------------------
 pub fn timer_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u32
 {
-    let timeout = Duration::from_secs(config.polling_frequency/1000);
+    let lock = config.lock().unwrap();
+    let timeout = Duration::from_secs(lock.polling_frequency/1000);
+    drop(lock);
 
-    while should_continue_monitoring(&mut config)
+    while should_continue_monitoring(&config)
     {
         let beginning_park = Instant::now();
         let mut timeout_remaining = timeout;
@@ -119,7 +122,11 @@ pub fn timer_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u32
             //
             // Polling frequency has elapsed...generate a dump
             //
-            println!("Trigger: Timer:{}(s) on process ID: {}", config.polling_frequency/1000, config.process_id);
+            {
+                let lock = config.lock().unwrap();
+                println!("Trigger: Timer:{}(s) on process ID: {}", lock.polling_frequency/1000, lock.process_id);
+            }
+
             // Write Dump
         }
         else
@@ -138,19 +145,24 @@ pub fn timer_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u32
 // --------------------------------------------------------------------
 // mem_monitoring_thread - Monitors for mem consumption based on config
 // --------------------------------------------------------------------
-pub fn mem_monitoring_thread(config: Arc<ProcDumpConfiguration>) -> u32
+pub fn mem_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u32
 {
+    let lock = config.lock().unwrap();
+    let polling_frequency = time::Duration::from_millis(lock.polling_frequency);
+    let pid = lock.process_id;
+    let string_pid: String = lock.process_id.to_string();
+    let trigger_below = lock.trigger_threshold_mem_below;
+    let trigger_threshold = lock.trigger_threshold_mem;
+    drop(lock);
 
-    let polling_frequency = time::Duration::from_millis(config.polling_frequency);
-
-    // assume pagesize
+    // TODO: assume pagesize
     let pagesize = 4;
 
     loop {
         //
         // Read /proc/{pid}/stat file to get process statistics
         //
-        let stat_path = format!("/proc/{}/stat", config.process_id);
+        let stat_path = format!("/proc/{}/stat", pid);
         let statcontents = fs::read_to_string(stat_path).expect("Stat file not found.");
 
         //
@@ -167,18 +179,17 @@ pub fn mem_monitoring_thread(config: Arc<ProcDumpConfiguration>) -> u32
 
         let mem_usage = rss + swap;
 
-        if (config.trigger_threshold_mem_below && mem_usage < config.trigger_threshold_mem) ||
-            (!config.trigger_threshold_mem_below && mem_usage >= config.trigger_threshold_mem) {
+        if (trigger_below && mem_usage < trigger_threshold) ||
+            (!trigger_below && mem_usage >= trigger_threshold) {
 
                 //
                 // Memory consumption trigger triggered
                 //
-                println!("Trigger: Memory usage:{}MB on process ID: {}", mem_usage, config.process_id);
+                println!("Trigger: Memory usage:{}MB on process ID: {}", mem_usage, string_pid);
 
                 //
                 // Trigger dump gen...
                 //
-                let string_pid: String = config.process_id.to_string();
                 Command::new("gcore").arg(string_pid).output().expect("Failed to execute gcore.");
 
                 println!("Core dump generated.");
