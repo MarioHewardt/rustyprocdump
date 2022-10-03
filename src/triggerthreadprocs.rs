@@ -3,10 +3,11 @@
 
 //--------------------------------------------------------------------
 //
-// Contains the memory consumption monitoring thread
+// Contains all monitor trigger threads
 //
 //--------------------------------------------------------------------
 extern crate nix;
+use crate::dumpwriter::write_dump;
 use crate::procdumpconfiguration::ProcDumpConfiguration;
 use std::fs;
 use std::{thread, time};
@@ -26,7 +27,7 @@ pub fn should_continue_monitoring(config: &Arc<Mutex<ProcDumpConfiguration>>) ->
     let mut lock = config.lock().unwrap();
 
     // Have we exceeded dump count?
-    if lock.number_of_dumps_collected > lock.number_of_dumps_to_collect
+    if lock.number_of_dumps_collected >= lock.number_of_dumps_to_collect
     {
         return false;
     }
@@ -41,24 +42,24 @@ pub fn should_continue_monitoring(config: &Arc<Mutex<ProcDumpConfiguration>>) ->
     let pgid = Pid::from_raw(-1 * lock.process_pgid);
     if lock.process_pgid != i32::MAX
     {
-        let res = kill(pgid, None);
+        /*let res = kill(pgid, None);
         if res.is_err()
         {
             lock.process_terminated = true;
             return false;
-        }
+        }*/
     }
 
     // check if any process are running with PID
     let pid = Pid::from_raw(lock.process_id);
     if lock.process_id != i32::MAX
     {
-        let res = kill(pid, None);
+        /*let res = kill(pid, None);
         if res.is_err()
         {
             lock.process_terminated = true;
             return false;
-        }
+        }*/
     }
 
     true
@@ -110,6 +111,10 @@ pub fn timer_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u32
     let timeout = Duration::from_secs(lock.polling_frequency/1000);
     drop(lock);
 
+    let mut trigger_type = String::new();
+    trigger_type.push_str("timer");
+
+
     while should_continue_monitoring(&config)
     {
         let beginning_park = Instant::now();
@@ -128,6 +133,7 @@ pub fn timer_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u32
             }
 
             // Write Dump
+            write_dump(&config, &trigger_type);
         }
         else
         {

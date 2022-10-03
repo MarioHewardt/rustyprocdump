@@ -10,6 +10,7 @@ mod procdumpconfiguration;
 mod triggerthreadprocs;
 mod monitor;
 mod processhelpers;
+mod dumpwriter;
 
 //use std::thread;
 
