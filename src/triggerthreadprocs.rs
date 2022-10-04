@@ -105,8 +105,6 @@ pub fn cpu_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u32
         let elapsed_time = uptime - (starttime/u64::try_from(hz).unwrap());
         let cpu_usage = ((total_time as f64/elapsed_time as f64) * 100 as f64)  as u32;
 
-        println!("CPU usage:{}% on process ID: {}", cpu_usage, pid);
-
         if (trigger_below && cpu_usage < trigger_threshold.into()) || (!trigger_below && cpu_usage >= trigger_threshold.into())
         {
             println!("Trigger: CPU usage:{}% on process ID: {}", cpu_usage, pid);
