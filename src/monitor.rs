@@ -85,12 +85,13 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
         let mut entry = MonitoredProcessMapEntry
         {
             active: false,
-            starttime: 0,
+            starttime: get_process_start_time(config_clone.process_id),
             config: Arc::new(Mutex::new(config_clone)),
             threads: Vec::new(),
         };
 
         print_configuration(config);
+        println!();
 
         if !start_monitor(&mut entry)
         {
@@ -108,7 +109,9 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
     else
     {
         print_configuration(config);
+        println!();
 
+        let mut num_monitored_process = 0;
         loop
         {
             // Multi process monitoring
@@ -123,7 +126,6 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
             }
 
             // Iterate over all running processes
-            let mut num_monitored_process = 0;
             for entry in fs::read_dir("/proc/").expect("I told you this directory exists")
             {
                 let entry = entry.expect("I couldn't read something inside the directory");
@@ -143,17 +145,16 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
                     {
                         let start_time = get_process_start_time(proc_pid);
 
-                        let res = monitored_process_map.contains_key(&proc_pid);
-                        if !res || (res && monitored_process_map.get(&proc_pid).unwrap().starttime != start_time)
+                        if !monitored_process_map.contains_key(&proc_pid)
                         {
-                            // We are not monitoring the process, setup a new monitor
+                            // New process, setup new monitor
                             let mut config_clone = config.clone();
                             config_clone.process_id = proc_pid;
                             config_clone.process_name = get_process_name_by_pid(proc_pid);
                             let mut entry = MonitoredProcessMapEntry
                             {
-                                active: false,
-                                starttime: 0,
+                                active: true,
+                                starttime: get_process_start_time(config_clone.process_id),
                                 config: Arc::new(Mutex::new(config_clone)),
                                 threads: Vec::new(),
                             };
@@ -166,6 +167,45 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
                             monitored_process_map.insert(proc_pid, entry);
                             num_monitored_process += 1;
                         }
+                        else
+                        {
+                            // We've already seen this process...
+                            // If the active flag = true, its an active monitor
+                            // If the active flag = false, check to see if starttimes are different...
+                            // if they are, we have a case of PID reuse (highly unlikely)
+                            let entry = monitored_process_map.get(&proc_pid).unwrap();
+                            if entry.active == false && entry.starttime != start_time
+                            {
+                                // PID reuse
+
+                                // First remove existing entry since we have to setup a new monitor (monitoring threads etc)
+                                let lock = entry.config.lock().unwrap();
+                                let pid = lock.process_id;
+                                drop(lock);
+
+                                monitored_process_map.remove(&pid);
+                                num_monitored_process -= 1;
+
+                                let mut config_clone = config.clone();
+                                config_clone.process_id = proc_pid;
+                                config_clone.process_name = get_process_name_by_pid(proc_pid);
+                                let mut entry = MonitoredProcessMapEntry
+                                {
+                                    active: true,
+                                    starttime: get_process_start_time(config_clone.process_id),
+                                    config: Arc::new(Mutex::new(config_clone)),
+                                    threads: Vec::new(),
+                                };
+
+                                if !start_monitor(&mut entry)
+                                {
+                                    println!("Failed to start monitor for pid: {}", config.process_id);
+                                }
+
+                                monitored_process_map.insert(proc_pid, entry);
+                                num_monitored_process += 1;
+                            }
+                        }
                     }
                 }
             }
@@ -174,11 +214,13 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
             let mut del_items: Vec<i32> = Vec::new();
             for (_pid, entry) in &mut monitored_process_map
             {
-                let lock = entry.config.lock().unwrap();
-                if lock.is_quit || lock.number_of_dumps_collected == lock.number_of_dumps_to_collect
+                if entry.active
                 {
-                    del_items.push(lock.process_id);
-                    num_monitored_process -= 1;
+                    let lock = entry.config.lock().unwrap();
+                    if lock.is_quit || lock.number_of_dumps_collected == lock.number_of_dumps_to_collect
+                    {
+                        del_items.push(lock.process_id);
+                    }
                 }
             }
 
@@ -186,18 +228,24 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
             for item in &del_items
             {
                 let entry_o = monitored_process_map.get_mut(&item).unwrap();
+                println!("Stopping monitors for process: {}", item);
                 wait_for_monitor_exit(entry_o);
-                monitored_process_map.remove(item);
+                entry_o.active = false;
+                //monitored_process_map.remove(item);
+                num_monitored_process -= 1;
             }
 
             // Exit if we are monitoring PGID and there are no more processes to monitor.
             // If we are monitoring for processes based on a process name we keep monitoring
             if num_monitored_process == 0 && config.waiting_process_name == false
             {
+                println!("Break");
                 break;
             }
         }
     }
+
+    println!("Leaving loop");
 
 }
 
@@ -289,7 +337,6 @@ pub fn start_monitor(entry: &mut MonitoredProcessMapEntry) -> bool
 
     }
 
-    println!();
     println!("Starting monitor for process {} ({})", guard.process_name, guard.process_id);
 
     true

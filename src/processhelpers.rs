@@ -91,7 +91,7 @@ pub fn get_process_pgid(pid: i32) -> u64
         Err(_) => return u64::MAX,
     };
 
-    let pgid = statcontents.split(" ").nth(3).unwrap().parse::<u64>().unwrap();
+    let pgid = statcontents.split(" ").nth(4).unwrap().parse::<u64>().unwrap();
 
     return pgid;
 }
