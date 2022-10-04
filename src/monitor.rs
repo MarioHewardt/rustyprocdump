@@ -8,9 +8,7 @@
 //--------------------------------------------------------------------
 use crate::procdumpconfiguration::ProcDumpConfiguration;
 use crate::procdumpconfiguration::print_configuration;
-use crate::processhelpers::look_up_process_by_pid;
-use crate::processhelpers::look_up_process_pid_by_name;
-use crate::processhelpers::look_up_process_name_by_pid;
+use crate::processhelpers::*;
 use crate::triggerthreadprocs;
 use std::collections::HashMap;
 use std::thread;
@@ -63,7 +61,7 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
         if !config.process_name.is_empty()
         {
             // Set the process ID so the monitor can target.
-            config.process_id = look_up_process_pid_by_name(&config.process_name);
+            config.process_id = get_process_pid_by_name(&config.process_name);
 
             if config.process_id == i32::MAX
             {
@@ -71,7 +69,7 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
                 return;
             }
         }
-        else if config.process_id != i32::MAX && !look_up_process_by_pid(config.process_id)
+        else if config.process_id != i32::MAX && !is_process_running(config.process_id)
         {
             println!("No process matching the specified PID ({}) can be found.", config.process_id);
             return;
@@ -81,7 +79,7 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
         let statcontents = fs::read_to_string(stat_path).expect("Stat file not found.");
 
         config.process_start_time = statcontents.split(" ").nth(21).unwrap().parse::<u64>().unwrap();
-        config.process_name = look_up_process_name_by_pid(config.process_id);
+        config.process_name = get_process_name_by_pid(config.process_id);
 
         let config_clone = config.clone();
         let mut entry = MonitoredProcessMapEntry
@@ -106,6 +104,99 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
         wait_for_monitor_exit(entry_o);
         println!("Stopping monitor for process {} ({})", config.process_name, config.process_id);
         monitored_process_map.remove(&config.process_id);
+    }
+    else
+    {
+        print_configuration(config);
+
+        loop
+        {
+            // Multi process monitoring
+
+            // Get PGID of process
+            let pgid = get_process_pgid(config.process_pgid);
+
+            if config.is_process_group_set && pgid == u64::MAX
+            {
+                println!("No process matching the specified PGID can be found.");
+                return;
+            }
+
+            // Iterate over all running processes
+            let mut num_monitored_process = 0;
+            for entry in fs::read_dir("/proc/").expect("I told you this directory exists")
+            {
+                let entry = entry.expect("I couldn't read something inside the directory");
+                let path = entry.path();
+                let pid = path.file_name().unwrap().to_str().unwrap().to_lowercase();
+                let proc_pid = match pid.parse::<i32>()
+                {
+                    Ok(pid) => pid,
+                    Err(_err) => { continue; },
+                };
+
+                if config.is_process_group_set
+                {
+                    // We're monitoring a process group (-pgid)
+                    let pgid = get_process_pgid(proc_pid);
+                    if pgid != u64::MAX && config.process_pgid as u64 == pgid
+                    {
+                        let start_time = get_process_start_time(proc_pid);
+
+                        let res = monitored_process_map.contains_key(&proc_pid);
+                        if !res || (res && monitored_process_map.get(&proc_pid).unwrap().starttime != start_time)
+                        {
+                            // We are not monitoring the process, setup a new monitor
+                            let mut config_clone = config.clone();
+                            config_clone.process_id = proc_pid;
+                            config_clone.process_name = get_process_name_by_pid(proc_pid);
+                            let mut entry = MonitoredProcessMapEntry
+                            {
+                                active: false,
+                                starttime: 0,
+                                config: Arc::new(Mutex::new(config_clone)),
+                                threads: Vec::new(),
+                            };
+
+                            if !start_monitor(&mut entry)
+                            {
+                                println!("Failed to start monitor for pid: {}", config.process_id);
+                            }
+
+                            monitored_process_map.insert(proc_pid, entry);
+                            num_monitored_process += 1;
+                        }
+                    }
+                }
+            }
+
+            // Iterate over the list of monitored processes and stash the ones which we should stop monitoring
+            let mut del_items: Vec<i32> = Vec::new();
+            for (_pid, entry) in &mut monitored_process_map
+            {
+                let lock = entry.config.lock().unwrap();
+                if lock.is_quit || lock.number_of_dumps_collected == lock.number_of_dumps_to_collect
+                {
+                    del_items.push(lock.process_id);
+                    num_monitored_process -= 1;
+                }
+            }
+
+            // Now walk the deleted list and delete from hashmap
+            for item in &del_items
+            {
+                let entry_o = monitored_process_map.get_mut(&item).unwrap();
+                wait_for_monitor_exit(entry_o);
+                monitored_process_map.remove(item);
+            }
+
+            // Exit if we are monitoring PGID and there are no more processes to monitor.
+            // If we are monitoring for processes based on a process name we keep monitoring
+            if num_monitored_process == 0 && config.waiting_process_name == false
+            {
+                break;
+            }
+        }
     }
 
 }

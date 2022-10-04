@@ -49,6 +49,7 @@ pub struct ProcDumpConfiguration{
     pub process_start_time: u64,
     pub active: bool,
     pub process_terminated: bool,
+    pub is_quit: bool,
 }
 
 //--------------------------------------------------------------------
@@ -125,6 +126,7 @@ impl Default for ProcDumpConfiguration
             exit_monitor: false,
             overwrite_existing_dump: false,
             process_terminated: false,
+            is_quit: false,
         }
     }
 }

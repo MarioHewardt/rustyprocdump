@@ -137,6 +137,8 @@ pub fn cpu_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u32
         }
     }
 
+    let mut lock = config.lock().unwrap();
+    lock.is_quit = true;
     0
 }
 
@@ -195,6 +197,9 @@ pub fn thread_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u3
             }
         }
     }
+
+    let mut lock = config.lock().unwrap();
+    lock.is_quit = true;
 
     0
 }
@@ -258,6 +263,9 @@ pub fn file_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u32
         }
     }
 
+    let mut lock = config.lock().unwrap();
+    lock.is_quit = true;
+
     0
 }
 
@@ -269,8 +277,11 @@ pub fn file_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u32
 // original signal is sent to the target process. Signals of non-interest are simply forwarded
 // to the target process.
 // --------------------------------------------------------------------
-pub fn signal_monitoring_thread(_: Arc<Mutex<ProcDumpConfiguration>>) -> u32
+pub fn signal_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u32
 {
+
+    let mut lock = config.lock().unwrap();
+    lock.is_quit = true;
 
     0
 }
@@ -328,6 +339,9 @@ pub fn timer_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u32
             break;
         }
     }
+
+    let mut lock = config.lock().unwrap();
+    lock.is_quit = true;
 
     0
 }
@@ -398,6 +412,9 @@ pub fn mem_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u32
             }
         }
     }
+
+    let mut lock = config.lock().unwrap();
+    lock.is_quit = true;
 
     0
 }
