@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use std::thread;
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
+use std::fs;
 
 pub struct MonitoredProcessMapEntry
 {
@@ -76,8 +77,11 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
             return;
         }
 
+        let stat_path = format!("/proc/{}/stat", config.process_id);
+        let statcontents = fs::read_to_string(stat_path).expect("Stat file not found.");
+
+        config.process_start_time = statcontents.split(" ").nth(21).unwrap().parse::<u64>().unwrap();
         config.process_name = look_up_process_name_by_pid(config.process_id);
-        // TODO: Get starttime
 
         let config_clone = config.clone();
         let mut entry = MonitoredProcessMapEntry
@@ -112,7 +116,7 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
 // -----------------------------------------------------------------
 pub fn start_monitor(entry: &mut MonitoredProcessMapEntry) -> bool
 {
-    let mut guard = entry.config.lock().unwrap();
+    let guard = entry.config.lock().unwrap();
     if guard.trigger_threshold_mem != u32::MAX
     {
         let config_clone = entry.config.clone();
@@ -194,6 +198,7 @@ pub fn start_monitor(entry: &mut MonitoredProcessMapEntry) -> bool
 
     }
 
+    println!();
     println!("Starting monitor for process {} ({})", guard.process_name, guard.process_id);
 
     true
@@ -207,7 +212,7 @@ pub fn wait_for_monitor_exit(entry: &mut MonitoredProcessMapEntry) -> bool
     for i in 0..entry.threads.len()
     {
         let join_handle = std::mem::take(&mut entry.threads[i]);
-        join_handle.unwrap().join();
+        join_handle.unwrap().join().expect("Failed to join monitor thread");
     }
 
     true

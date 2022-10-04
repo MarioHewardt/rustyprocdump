@@ -98,3 +98,46 @@ pub fn look_up_process_by_pid(pid: i32) -> bool
 
     true
 }
+
+//--------------------------------------------------------------------
+//
+// look_up_process_by_pgid - returns true if any process has the
+// specified pgid
+//--------------------------------------------------------------------
+/*pub fn look_up_process_by_pgid(_pgid: i32) -> bool
+{
+    for entry in fs::read_dir("/proc/").expect("I told you this directory exists")
+    {
+        let entry = entry.expect("I couldn't read something inside the directory");
+        let path = entry.path();
+
+        let pid = path.file_name().unwrap().to_str().unwrap().to_lowercase();
+
+        // If we can't convert the read pid to i32 its not a pid, move on
+        let _ = match pid.parse::<i32>()
+        {
+            Ok(pid_) => pid_,
+            Err(_err) => { continue; },
+        };
+
+
+    }
+
+    true
+}*/
+
+//--------------------------------------------------------------------
+//
+// look_up_process_pgid_by_pid - returns the pgid of the specified pid
+// or i32::MAX if error
+//--------------------------------------------------------------------
+/*pub fn look_up_process_pgid_by_pid(_pid: i32) -> i32
+{
+    //let stat_path = format!("/proc/{}/stat", pid);
+    //let statcontents = fs::read_to_string(stat_path).expect("Stat file not found.");
+
+    //let pgid = statcontents.split(" ").nth(4).unwrap().parse::<u64>().unwrap();
+
+
+    0
+}*/

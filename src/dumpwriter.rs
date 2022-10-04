@@ -23,7 +23,7 @@ pub fn write_dump(config: &Arc<Mutex<ProcDumpConfiguration>>, trigger_type: &Str
     let dump_date = current.format("%Y-%m-%d_%H:%M:%S").to_string();
 
     // Construct the dump prefix
-    let mut gcore_prefix_name: String;
+    let gcore_prefix_name: String;
     if !lock.core_dump_name.is_empty()
     {
         gcore_prefix_name = format!("{}/{}_{}", lock.core_dump_path, lock.core_dump_name, lock.number_of_dumps_collected);
@@ -35,7 +35,7 @@ pub fn write_dump(config: &Arc<Mutex<ProcDumpConfiguration>>, trigger_type: &Str
 
     // Construct the dump file name
     let core_dump_file_name = format!("{}.{}", gcore_prefix_name, lock.process_id);
-    let core_dump_name = gcore_prefix_name.clone();
+    //let core_dump_name = gcore_prefix_name.clone();
 
     // Check if file already exists and if we have the overwrite flag set
     if Path::new(&core_dump_file_name).exists() && !lock.overwrite_existing_dump
@@ -46,7 +46,7 @@ pub fn write_dump(config: &Arc<Mutex<ProcDumpConfiguration>>, trigger_type: &Str
 
     // Run gcore
     let gcore_res = Command::new("gcore").arg("-o").arg(gcore_prefix_name).arg(lock.process_id.to_string()).output().expect("Failed to execute gcore.");
-    let gcore_stdout = gcore_res.stdout;
+    //let gcore_stdout = gcore_res.stdout;
     let gcore_stderr = gcore_res.stderr;
 
     // If we failed, dump error
@@ -62,8 +62,6 @@ pub fn write_dump(config: &Arc<Mutex<ProcDumpConfiguration>>, trigger_type: &Str
         println!("Core dump {} generated: {}", lock.number_of_dumps_collected, core_dump_file_name);
         lock.number_of_dumps_collected += 1;
     }
-
-
 
     true
 }

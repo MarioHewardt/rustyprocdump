@@ -46,7 +46,7 @@ pub struct ProcDumpConfiguration{
     pub core_dump_name : String,
     pub exit_monitor : bool,
     pub overwrite_existing_dump: bool,
-    pub process_start_time: i64,
+    pub process_start_time: u64,
     pub active: bool,
     pub process_terminated: bool,
 }

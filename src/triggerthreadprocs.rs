@@ -10,17 +10,12 @@ extern crate nix;
 extern crate sysinfo;
 use crate::dumpwriter::write_dump;
 use crate::procdumpconfiguration::ProcDumpConfiguration;
-use nix::libc::waitpid;
-use nix::sys::signal::*;
-use nix::sys::wait::{WaitPidFlag, WaitStatus};
 use std::fs;
 use std::thread::park_timeout;
 use std::time::{Instant, Duration};
-use nix::unistd::Pid;
 use std::sync::{Arc, Mutex};
 use nix::unistd::*;
 use sysinfo::*;
-use nix::sys::ptrace::*;
 
 // --------------------------------------------------------------------
 // should_continue_monitoring - returns true if monitor thread should
@@ -28,7 +23,7 @@ use nix::sys::ptrace::*;
 // --------------------------------------------------------------------
 pub fn should_continue_monitoring(config: &Arc<Mutex<ProcDumpConfiguration>>) -> bool
 {
-    let mut lock = config.lock().unwrap();
+    let lock = config.lock().unwrap();
 
     // Have we exceeded dump count?
     if lock.number_of_dumps_collected >= lock.number_of_dumps_to_collect
@@ -43,10 +38,10 @@ pub fn should_continue_monitoring(config: &Arc<Mutex<ProcDumpConfiguration>>) ->
     }
 
     // check if any process are running with PGID
-    let pgid = Pid::from_raw(-1 * lock.process_pgid);
     if lock.process_pgid != i32::MAX
     {
-/*         let res = kill(pgid, None);
+/*       let pgid = Pid::from_raw(-1 * lock.process_pgid);
+      let res = kill(pgid, None);
         if res.is_err()
         {
             println!("Error");
@@ -56,10 +51,12 @@ pub fn should_continue_monitoring(config: &Arc<Mutex<ProcDumpConfiguration>>) ->
     }
 
     // check if any process are running with PID
-    let pid = Pid::from_raw(lock.process_id);
     if lock.process_id != i32::MAX
     {
-        /*let res = kill(pid, None);
+        /*
+            let pid = Pid::from_raw(lock.process_id);
+
+        let res = kill(pid, None);
         if res.is_err()
         {
             println!("Target process {} is no longer alive", lock.process_id);
@@ -106,7 +103,9 @@ pub fn cpu_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u32
 
         let total_time = (utime + stime) / u64::try_from(hz).unwrap();
         let elapsed_time = uptime - (starttime/u64::try_from(hz).unwrap());
-        let cpu_usage = (total_time/elapsed_time) * 100;
+        let cpu_usage = ((total_time as f64/elapsed_time as f64) * 100 as f64)  as u32;
+
+        println!("CPU usage:{}% on process ID: {}", cpu_usage, pid);
 
         if (trigger_below && cpu_usage < trigger_threshold.into()) || (!trigger_below && cpu_usage >= trigger_threshold.into())
         {
@@ -272,29 +271,8 @@ pub fn file_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u32
 // original signal is sent to the target process. Signals of non-interest are simply forwarded
 // to the target process.
 // --------------------------------------------------------------------
-pub fn signal_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u32
+pub fn signal_monitoring_thread(_: Arc<Mutex<ProcDumpConfiguration>>) -> u32
 {
-    let lock = config.lock().unwrap();
-    let sig_number = lock.trigger_signal;
-    let in_between_dumps = lock.threshold_seconds;
-    let pid = lock.process_id;
-    drop(lock);
-
-    let pid = Pid::from_raw(pid) ;
-
-    let options = Options::empty();
-
-    _ = seize(pid, options).expect("Failed to seize target process");
-
-    loop
-    {
-        unsafe
-        {
-            _ = nix::sys::wait::waitpid(pid, None);
-        }
-
-
-    }
 
     0
 }
