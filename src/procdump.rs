@@ -32,7 +32,5 @@ fn main(){
 
     // Start monitoring based on config
     monitor::monitor_processes(&mut config);
-
-    println!("Exiting procdump");
 }
 

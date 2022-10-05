@@ -111,6 +111,17 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
         print_configuration(config);
         println!();
 
+        if config.is_process_group_set
+        {
+            println!("Waiting for processes in process target group {} (CTRL-C to exit)...", config.process_pgid);
+            println!();
+        }
+        else if config.waiting_process_name
+        {
+            println!("Waiting for processes named {} (CTRL-C to exit)...", config.process_name);
+            println!();
+        }
+
         let mut num_monitored_process = 0;
         loop
         {
@@ -310,16 +321,12 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
             // If we are monitoring for processes based on a process name we keep monitoring
             if num_monitored_process == 0 && config.waiting_process_name == false
             {
-                println!("Break");
                 break;
             }
 
             thread::sleep(time::Duration::from_millis(config.polling_frequency));
         }
     }
-
-    println!("Leaving loop");
-
 }
 
 
