@@ -159,17 +159,7 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
                         if !monitored_process_map.contains_key(&proc_pid)
                         {
                             // New process, setup new monitor
-                            let mut config_clone = config.clone();
-                            config_clone.process_id = proc_pid;
-                            config_clone.process_name = get_process_name_by_pid(proc_pid);
-                            let mut entry = MonitoredProcessMapEntry
-                            {
-                                active: true,
-                                starttime: get_process_start_time(config_clone.process_id),
-                                config: Arc::new(Mutex::new(config_clone)),
-                                threads: Vec::new(),
-                            };
-
+                            let mut entry = get_new_process_map_entry(config, proc_pid);
                             if !start_monitor(&mut entry)
                             {
                                 println!("Failed to start monitor for pid: {}", config.process_id);
@@ -197,17 +187,7 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
                                 monitored_process_map.remove(&pid);
                                 num_monitored_process -= 1;
 
-                                let mut config_clone = config.clone();
-                                config_clone.process_id = proc_pid;
-                                config_clone.process_name = get_process_name_by_pid(proc_pid);
-                                let mut entry = MonitoredProcessMapEntry
-                                {
-                                    active: true,
-                                    starttime: get_process_start_time(config_clone.process_id),
-                                    config: Arc::new(Mutex::new(config_clone)),
-                                    threads: Vec::new(),
-                                };
-
+                                let mut entry = get_new_process_map_entry(config, proc_pid);
                                 if !start_monitor(&mut entry)
                                 {
                                     println!("Failed to start monitor for pid: {}", config.process_id);
@@ -231,17 +211,7 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
                         if !monitored_process_map.contains_key(&proc_pid)
                         {
                             // New process, setup new monitor
-                            let mut config_clone = config.clone();
-                            config_clone.process_id = proc_pid;
-                            config_clone.process_name = get_process_name_by_pid(proc_pid);
-                            let mut entry = MonitoredProcessMapEntry
-                            {
-                                active: true,
-                                starttime: get_process_start_time(config_clone.process_id),
-                                config: Arc::new(Mutex::new(config_clone)),
-                                threads: Vec::new(),
-                            };
-
+                            let mut entry = get_new_process_map_entry(config, proc_pid);
                             if !start_monitor(&mut entry)
                             {
                                 println!("Failed to start monitor for pid: {}", config.process_id);
@@ -269,17 +239,7 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
                                 monitored_process_map.remove(&pid);
                                 num_monitored_process -= 1;
 
-                                let mut config_clone = config.clone();
-                                config_clone.process_id = proc_pid;
-                                config_clone.process_name = get_process_name_by_pid(proc_pid);
-                                let mut entry = MonitoredProcessMapEntry
-                                {
-                                    active: true,
-                                    starttime: get_process_start_time(config_clone.process_id),
-                                    config: Arc::new(Mutex::new(config_clone)),
-                                    threads: Vec::new(),
-                                };
-
+                                let mut entry = get_new_process_map_entry(config, proc_pid);
                                 if !start_monitor(&mut entry)
                                 {
                                     println!("Failed to start monitor for pid: {}", config.process_id);
@@ -307,7 +267,7 @@ pub fn monitor_processes(config: &mut ProcDumpConfiguration)
                 }
             }
 
-            // Now walk the deleted list and delete from hashmap
+            // Now walk the deleted list and wait for monitors to exit
             for item in &del_items
             {
                 let entry_o = monitored_process_map.get_mut(&item).unwrap();
@@ -434,4 +394,25 @@ pub fn wait_for_monitor_exit(entry: &mut MonitoredProcessMapEntry) -> bool
     }
 
     true
+}
+
+// -----------------------------------------------------------------
+// get_new_process_map_entry - Gets a new process map entry based
+// on config specified. It clones the config and updates the pid
+// and process name based on passed in pid
+// -----------------------------------------------------------------
+pub fn get_new_process_map_entry(config: &mut ProcDumpConfiguration, proc_pid: i32) -> MonitoredProcessMapEntry
+{
+    let mut config_clone = config.clone();
+    config_clone.process_id = proc_pid;
+    config_clone.process_name = get_process_name_by_pid(proc_pid);
+    let entry = MonitoredProcessMapEntry
+    {
+        active: true,
+        starttime: get_process_start_time(config_clone.process_id),
+        config: Arc::new(Mutex::new(config_clone)),
+        threads: Vec::new(),
+    };
+
+    entry
 }
