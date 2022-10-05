@@ -14,7 +14,7 @@ use std::{fs};
 // , i32::MAX otherwise.
 //
 //--------------------------------------------------------------------
-pub fn look_up_process_name_by_pid(pid: i32) -> String
+pub fn get_process_name_by_pid(pid: i32) -> String
 {
     let mut cmd_path = String::new();
     cmd_path.push_str("/proc/");
@@ -50,7 +50,7 @@ pub fn look_up_process_name_by_pid(pid: i32) -> String
 // is running, i32::MAX otherwise
 //
 //--------------------------------------------------------------------
-pub fn look_up_process_pid_by_name(process_name: &String) -> i32
+pub fn get_process_pid_by_name(process_name: &String) -> i32
 {
     // TODO: Get rid of all expect since it panics.
     for entry in fs::read_dir("/proc/").expect("I told you this directory exists")
@@ -67,7 +67,7 @@ pub fn look_up_process_pid_by_name(process_name: &String) -> i32
             Err(_err) => { continue; },
         };
 
-        let process_name_found = look_up_process_name_by_pid(pid.parse::<i32>().unwrap());
+        let process_name_found = get_process_name_by_pid(pid.parse::<i32>().unwrap());
         if process_name_found.eq(process_name)
         {
             return pid.parse::<i32>().unwrap();
@@ -77,67 +77,54 @@ pub fn look_up_process_pid_by_name(process_name: &String) -> i32
     i32::MAX
 }
 
+
 //--------------------------------------------------------------------
 //
-// look_up_process_by_pid - returns true if the specified process
-// is running, false otherwise
-//
+// get_process_pgid - returns pgid of the specified process
 //--------------------------------------------------------------------
-pub fn look_up_process_by_pid(pid: i32) -> bool
+pub fn get_process_pgid(pid: i32) -> u64
 {
-    let mut cmd_path = String::new();
-    cmd_path.push_str("/proc/");
-    cmd_path.push_str(&pid.to_string());
-    cmd_path.push_str("/stat");
-
-    let cmd_line = std::fs::read_to_string(&cmd_path);
-    if cmd_line.is_err()
+    let stat_path = format!("/proc/{}/stat", pid);
+    let statcontents = match fs::read_to_string(stat_path)
     {
-        return false;
-    }
+        Ok(stat) => stat,
+        Err(_) => return u64::MAX,
+    };
 
-    true
+    let pgid = statcontents.split(" ").nth(4).unwrap().parse::<u64>().unwrap();
+
+    return pgid;
 }
 
 //--------------------------------------------------------------------
 //
-// look_up_process_by_pgid - returns true if any process has the
-// specified pgid
+// get_process_start_time - returns pgid of the specified process
 //--------------------------------------------------------------------
-/*pub fn look_up_process_by_pgid(_pgid: i32) -> bool
+pub fn get_process_start_time(pid: i32) -> u64
 {
-    for entry in fs::read_dir("/proc/").expect("I told you this directory exists")
+    let stat_path = format!("/proc/{}/stat", pid);
+    let statcontents = match fs::read_to_string(stat_path)
     {
-        let entry = entry.expect("I couldn't read something inside the directory");
-        let path = entry.path();
+        Ok(contents) => contents,
+        Err(_) => return u64::MAX,
+    };
 
-        let pid = path.file_name().unwrap().to_str().unwrap().to_lowercase();
+    let start_time = statcontents.split(" ").nth(21).unwrap().parse::<u64>().unwrap();
 
-        // If we can't convert the read pid to i32 its not a pid, move on
-        let _ = match pid.parse::<i32>()
-        {
-            Ok(pid_) => pid_,
-            Err(_err) => { continue; },
-        };
-
-
-    }
-
-    true
-}*/
+    return start_time;
+}
 
 //--------------------------------------------------------------------
 //
-// look_up_process_pgid_by_pid - returns the pgid of the specified pid
-// or i32::MAX if error
+// is_process_running - returns true if the specified process is
+// running, false otherwise.
 //--------------------------------------------------------------------
-/*pub fn look_up_process_pgid_by_pid(_pid: i32) -> i32
+pub fn is_process_running(pid: i32) -> bool
 {
-    //let stat_path = format!("/proc/{}/stat", pid);
-    //let statcontents = fs::read_to_string(stat_path).expect("Stat file not found.");
-
-    //let pgid = statcontents.split(" ").nth(4).unwrap().parse::<u64>().unwrap();
-
-
-    0
-}*/
+    let stat_path = format!("/proc/{}/stat", pid);
+    let _ = match fs::read_to_string(stat_path)
+    {
+        Ok(_) => return true,
+        Err(_) => return false,
+    };
+}

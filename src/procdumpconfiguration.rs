@@ -49,6 +49,7 @@ pub struct ProcDumpConfiguration{
     pub process_start_time: u64,
     pub active: bool,
     pub process_terminated: bool,
+    pub is_quit: bool,
 }
 
 //--------------------------------------------------------------------
@@ -98,11 +99,11 @@ impl Default for ProcDumpConfiguration
         //sysinfo(&(self->SystemInfo));
         ProcDumpConfiguration
         {
-            process_id: -1,
+            process_id: i32::MAX,
             process_start_time: 0,
             active: false,
             is_process_group_set: false,
-            process_pgid: -1,
+            process_pgid: i32::MAX,
             process_name: Default::default(),
             number_of_dumps_collected: 0,
             number_of_dumps_to_collect: u32::MAX,
@@ -117,7 +118,7 @@ impl Default for ProcDumpConfiguration
             trigger_threshold_seconds: u32::MAX,
             waiting_process_name: false,
             diagnostics_logging_enabled: false,
-            gcore_process_id: -1,
+            gcore_process_id: i32::MAX,
             polling_frequency: u64::MAX,
             core_dump_path: Default::default(),
             core_dump_name: Default::default(),
@@ -125,6 +126,7 @@ impl Default for ProcDumpConfiguration
             exit_monitor: false,
             overwrite_existing_dump: false,
             process_terminated: false,
+            is_quit: false,
         }
     }
 }

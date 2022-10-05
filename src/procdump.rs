@@ -17,7 +17,8 @@ mod dumpwriter;
 // -----------------------------------------------------------------
 // Main function
 // -----------------------------------------------------------------
-fn main(){
+fn main()
+{
     procdumpconfiguration::print_banner();
     procdumpconfiguration::init_procdump();
 

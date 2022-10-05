@@ -3,6 +3,14 @@ name = "rustyprocdump"
 version = "0.1.0"
 edition = "2021"
 
+[profile.release]
+strip = true  # Automatically strip symbols from the binary.
+opt-level = "z"  # Optimize for size.
+
+[profile.dev]
+strip = true  # Automatically strip symbols from the binary.
+opt-level = "z"  # Optimize for size.
+
 [[bin]]
 name = "rustyprocdump"
 path = "src/procdump.rs"
