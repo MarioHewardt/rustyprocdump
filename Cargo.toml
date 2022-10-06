@@ -8,8 +8,6 @@ strip = true  # Automatically strip symbols from the binary.
 opt-level = "z"  # Optimize for size.
 
 [profile.dev]
-strip = true  # Automatically strip symbols from the binary.
-opt-level = "z"  # Optimize for size.
 
 [[bin]]
 name = "rustyprocdump"
@@ -19,3 +17,4 @@ path = "src/procdump.rs"
 nix = "0.25.0"
 chrono = "0.4.22"
 sysinfo = "0.26.4"
+

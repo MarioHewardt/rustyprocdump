@@ -309,12 +309,6 @@ pub fn timer_monitoring_thread(config: Arc<Mutex<ProcDumpConfiguration>>) -> u32
         let elapsed = park_thread(timeout_remaining.into());
         if elapsed >= Duration::from_secs(timeout)
         {
-            // Polling frequency has elapsed...generate a dump
-            {
-                let lock = config.lock().unwrap();
-                println!("Trigger: Timer:{}(s) on process ID: {}", lock.polling_frequency/1000, lock.process_id);
-            }
-
             // Write Dump
             println!("Trigger: Timer:{}(s) on process ID: {}", timeout, pid);
             write_dump(&config, &trigger_type);
